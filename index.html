@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commodity Signals — Live Decision Support</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0d1117">
+<style>
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--muted:#8b949e;--green:#26a69a;--red:#ef5350;--amber:#d29922;--accent:#58a6ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:14px;max-width:1100px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px}
+h1{font-size:19px;font-weight:700}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+#updated{color:var(--muted);font-size:13px}
+button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+#settings{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+#settings label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+#settings input{background:#0d1117;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;width:110px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
+.card .top{display:flex;justify-content:space-between;align-items:baseline}
+.card h2{font-size:15px;letter-spacing:.5px}
+.unit{color:var(--muted);font-size:12px}
+.price{font-size:24px;font-weight:700;margin:4px 0}
+.chg{font-size:13px;font-weight:600}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-weight:700;font-size:13px;letter-spacing:.5px}
+.b-BUY{background:rgba(38,166,154,.15);color:var(--green);border:1px solid var(--green)}
+.b-SELL{background:rgba(239,83,80,.15);color:var(--red);border:1px solid var(--red)}
+.b-WAIT{background:rgba(139,148,158,.12);color:var(--muted);border:1px solid var(--muted)}
+.rows{margin-top:10px;font-size:13px}
+.rows .r{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #21262d}
+.rows .r span:first-child{color:var(--muted)}
+.conf{display:flex;gap:4px;margin-top:10px}
+.conf i{width:16px;height:5px;border-radius:3px;background:#30363d}
+.conf i.on{background:var(--accent)}
+canvas{width:100%;height:56px;margin-top:10px;display:block}
+#banner{display:none;background:rgba(239,83,80,.12);border:1px solid var(--red);color:var(--red);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px}
+footer{color:var(--muted);font-size:12px;margin-top:16px;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="dot" id="liveDot"></span>Commodity Signals</h1>
+  <span id="updated">Loading…</span>
+  <span style="flex:1"></span>
+  <button id="refresh">↻ Refresh</button>
+</header>
+<div id="banner"></div>
+<div id="settings">
+  <label>Capital (₹) <input id="capital" type="number" min="1000" step="1000" value="100000"></label>
+  <label>Risk per trade (%) <input id="risk" type="number" min="0.1" max="10" step="0.1" value="1"></label>
+</div>
+<div class="grid" id="grid"></div>
+<footer>⚠️ Decision-support tool only — not investment advice. Signals are generated from EMA 9/21 crossover, RSI 14 and ATR-based risk levels on 5-minute candles. Data sources are unofficial (MCX internal feed / Yahoo Finance) and may change or stop anytime. Trade at your own risk.</footer>
+<script>
+var SYMBOLS=[
+ {key:"GOLD",label:"GOLD",unit:"₹/g",lot:"1 kg"},
+ {key:"SILVER",label:"SILVER",unit:"₹/g",lot:"30 kg"},
+ {key:"CRUDEOIL",label:"CRUDE OIL",unit:"₹/bbl",lot:"100 bbl"},
+ {key:"NATGAS",label:"NATURAL GAS",unit:"₹/mmBtu",lot:"1,250 mmBtu"}
+];
+function $(id){return document.getElementById(id)}
+function fmt(n,d){if(n==null)return "—";d=d==null?2:d;return n.toLocaleString("en-IN",{minimumFractionDigits:d,maximumFractionDigits:d})}
+function ema(v,n){if(v.length<n)return null;var k=2/(n+1),e=0,i;for(i=0;i<n;i++)e+=v[i];e/=n;for(i=n;i<v.length;i++)e=v[i]*k+e*(1-k);return e}
+function rsi(v,n){n=n||14;if(v.length<n+1)return null;var g=0,l=0,i,d;for(i=1;i<=n;i++){d=v[i]-v[i-1];if(d>0)g+=d;else l-=d}var ag=g/n,al=l/n;for(i=n+1;i<v.length;i++){d=v[i]-v[i-1];ag=(ag*(n-1)+Math.max(d,0))/n;al=(al*(n-1)+Math.max(-d,0))/n}return al===0?100:100-100/(1+ag/al)}
+function atr(h,n){n=n||14;if(h.length<n+1)return null;var s=0,i,hi,lo,cl,pc;for(i=h.length-n;i<h.length;i++){hi=h[i][2];lo=h[i][3];cl=h[i][4];pc=h[i-1][4];s+=Math.max(hi-lo,Math.abs(hi-pc),Math.abs(lo-pc))}return s/n}
+function computeSignal(c){
+  var closes=c.history.map(function(r){return r[4]});
+  var e9=ema(closes,9),e21=ema(closes,21),r=rsi(closes),a=atr(c.history);
+  if(e9==null||e21==null||r==null||a==null)return null;
+  var up=e9>e21,sig="WAIT",conf=1;
+  if(up&&r<70){sig="BUY";conf=r>55?4:3;if(r>60&&e9>e21*1.002)conf=5}
+  else if(!up&&r>30){sig="SELL";conf=r<45?4:3;if(r<40&&e9<e21*0.998)conf=5}
+  var entry=c.price;
+  var sl=sig==="BUY"?entry-1.5*a:(sig==="SELL"?entry+1.5*a:null);
+  var tgt=sig==="BUY"?entry+3*a:(sig==="SELL"?entry-3*a:null);
+  return {sig:sig,conf:conf,entry:entry,sl:sl,tgt:tgt,rsi:r,e9:e9,e21:e21,up:up};
+}
+function riskLots(s,contractUnits,capital,riskPct){
+  if(!s||s.sl==null)return null;
+  var riskAmt=capital*riskPct/100,dist=Math.abs(s.entry-s.sl);
+  if(dist<=0)return null;
+  return Math.max(1,Math.floor(riskAmt/dist/contractUnits));
+}
+function row(label,val){return '<div class="r"><span>'+label+'</span><span>'+val+'</span></div>'}
+function cardHTML(cfg,c){
+  if(!c||c.price==null||!c.history||!c.history.length){
+    return '<div class="card"><div class="top"><h2>'+cfg.label+'</h2><span class="unit">'+cfg.unit+'</span></div>'+
+      '<div class="price">—</div><div class="rows">'+row("Status","Waiting for first data run")+'</div></div>';
+  }
+  var s=computeSignal(c);
+  var closes=c.history.map(function(r){return r[4]});
+  var prev=closes.length>1?closes[closes.length-2]:c.price;
+  var chg=prev?((c.price-prev)/prev*100):0;
+  var cap=parseFloat(localStorage.getItem("cs_capital"))||100000;
+  var rp=parseFloat(localStorage.getItem("cs_risk"))||1;
+  var lots=s?riskLots(s,c.contractUnits,cap,rp):null;
+  var conf=s?'<div class="conf">'+Array.from({length:5},function(_,i){return '<i class="'+(i<s.conf?"on":"")+'"></i>'}).join("")+'</div>':"";
+  var trend=s?(s.up?'<span style="color:var(--green)">▲ Uptrend</span>':'<span style="color:var(--red)">▼ Downtrend</span>'):"—";
+  var html='<div class="card">'+
+    '<div class="top"><h2>'+cfg.label+'</h2><span class="unit">'+cfg.unit+'</span></div>'+
+    '<div class="price">'+fmt(c.price)+'</div>'+
+    '<div class="chg" style="color:'+(chg>=0?"var(--green)":"var(--red)")+'">'+(chg>=0?"+":"")+chg.toFixed(2)+'% today</div>';
+  if(s){
+    html+='<div style="margin-top:8px"><span class="badge b-'+s.sig+'">'+s.sig+'</span> <span style="font-size:12px">'+trend+'</span></div>'+conf+
+      '<div class="rows">'+
+      row("Entry",fmt(s.entry))+
+      row("Stop-loss",s.sl==null?"—":fmt(s.sl))+
+      row("Target",s.tgt==null?"—":fmt(s.tgt))+
+      row("RSI (14)",s.rsi.toFixed(1))+
+      row("EMA 9 / 21",fmt(s.e9)+" / "+fmt(s.e21))+
+      row("Position size",lots==null?"—":lots+" lot"+(lots>1?"s":"")+" ("+cfg.lot+")")+
+      row("Source",c.source||"—")+
+      '</div>';
+  }else{
+    html+='<div class="rows" style="margin-top:8px">'+row("Status","Not enough history for signals yet")+'</div>';
+  }
+  html+='<canvas></canvas></div>';
+  return html;
+}
+function drawSpark(cv,hist){
+  var dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;
+  cv.width=w*dpr;cv.height=h*dpr;
+  var ctx=cv.getContext("2d");ctx.scale(dpr,dpr);
+  var data=hist.slice(-80).map(function(r){return r[4]});
+  var min=Math.min.apply(null,data),max=Math.max.apply(null,data),rg=(max-min)||1;
+  var up=data[data.length-1]>=data[0],col=up?"#26a69a":"#ef5350";
+  function pt(i){return [i/(data.length-1)*w,h-4-((data[i]-min)/rg)*(h-8)]}
+  ctx.beginPath();
+  for(var i=0;i<data.length;i++){var p=pt(i);if(i)ctx.lineTo(p[0],p[1]);else ctx.moveTo(p[0],p[1])}
+  ctx.strokeStyle=col;ctx.lineWidth=1.6;ctx.stroke();
+  ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();
+  var g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,col+"55");g.addColorStop(1,col+"00");
+  ctx.fillStyle=g;ctx.fill();
+}
+function render(data){
+  var grid=$("grid");grid.innerHTML="";
+  SYMBOLS.forEach(function(cfg){
+    var wrap=document.createElement("div");
+    wrap.innerHTML=cardHTML(cfg,(data.commodities||{})[cfg.key]);
+    grid.appendChild(wrap.firstChild);
+  });
+  var cards=grid.querySelectorAll(".card");
+  SYMBOLS.forEach(function(cfg,i){
+    var c=(data.commodities||{})[cfg.key],cv=cards[i].querySelector("canvas");
+    if(c&&c.history&&c.history.length&&cv)drawSpark(cv,c.history);
+  });
+  var u=data.updatedAt?new Date(data.updatedAt):null;
+  $("updated").textContent=u?("Updated "+u.toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit"})+" IST · USD/INR "+(data.usdinr||"—")):"Waiting for data…";
+}
+function load(){
+  $("liveDot").style.background="var(--amber)";
+  return fetch("data.json?ts="+Date.now()).then(function(res){
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    return res.json();
+  }).then(function(data){
+    render(data);
+    $("banner").style.display="none";
+  }).catch(function(e){
+    $("banner").style.display="block";
+    $("banner").textContent="⚠️ Could not load live data ("+e.message+"). The first GitHub Actions run may still be pending — try Refresh in a minute.";
+  }).finally(function(){
+    $("liveDot").style.background="var(--green)";
+  });
+}
+var timer=setInterval(load,60000);
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden){clearInterval(timer)}
+  else{load();clearInterval(timer);timer=setInterval(load,60000)}
+});
+$("refresh").addEventListener("click",load);
+$("capital").value=localStorage.getItem("cs_capital")||100000;
+$("risk").value=localStorage.getItem("cs_risk")||1;
+$("capital").addEventListener("change",function(e){localStorage.setItem("cs_capital",e.target.value);load()});
+$("risk").addEventListener("change",function(e){localStorage.setItem("cs_risk",e.target.value);load()});
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
+load();
+</script>
+</body>
+</html>
