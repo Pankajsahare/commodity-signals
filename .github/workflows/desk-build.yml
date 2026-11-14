@@ -50,7 +50,6 @@ jobs:
           mkdir -p _site/desk
           cp index.html icon.svg sw.js _site/
           cp desk/desk.js desk/desk.css desk/index.html _site/desk/
-          cp -r desk/demo _site/desk/demo  # TEMP: UI testing (नंतर काढायचं)
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
