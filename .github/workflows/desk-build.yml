@@ -1,0 +1,59 @@
+# दर 5 मिनिटाला (MCX वेळ, सोम-शुक्र) dashboard data बनवून GitHub Pages वर टाकतो + मजबूत signal alerts
+# Secrets: DESK_PASSPHRASE (आवश्यक), TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+name: desk-build
+on:
+  schedule:
+    - cron: "*/5 3-18 * * 1-5"
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ["desk/**", "scripts/**", "config/**", "index.html", ".github/workflows/desk-build.yml"]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load EOD history (history branch)
+        run: git fetch --depth=1 origin history && git worktree add hist FETCH_HEAD || mkdir -p hist
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install cryptography==43.0.3
+      - name: Restore alert state
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: alert-state-${{ github.run_id }}
+          restore-keys: alert-state-
+      - name: Build desk data
+        env:
+          DESK_PASSPHRASE: ${{ secrets.DESK_PASSPHRASE }}
+        run: python scripts/build.py
+      - name: Telegram alerts + health check
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/alerts.py --alerts
+      - name: Prepare site
+        run: |
+          mkdir -p _site/desk
+          cp index.html icon.svg sw.js _site/
+          cp desk/desk.js desk/desk.css desk/index.html _site/desk/
+          cp -r desk/demo _site/desk/demo  # TEMP: UI testing (नंतर काढायचं)
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

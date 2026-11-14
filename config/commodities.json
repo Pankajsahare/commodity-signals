@@ -1,0 +1,491 @@
+{
+ "_help": "नवीन commodity जोडायची असेल तर commodities मध्ये एक entry जोड. yahoo/conv/premium फक्त intraday साठी (optional). lots = [नाव, प्रति 1 point ₹ multiplier, label]. verifyLot=true म्हणजे lot size exchange वर तपासा. holidays = YYYY-MM-DD (MCX circular प्रमाणे भर).",
+ "holidays": [],
+ "commodities": [
+  {
+   "id": "GOLD",
+   "name": "Gold",
+   "sector": "Bullion",
+   "exch": "MCX",
+   "sym": "GOLD",
+   "unit": "₹/10 g",
+   "lots": [
+    [
+     "Gold",
+     100,
+     "1 kg"
+    ],
+    [
+     "Gold Mini",
+     10,
+     "100 g"
+    ],
+    [
+     "Gold Guinea",
+     0.8,
+     "8 g"
+    ],
+    [
+     "Gold Petal",
+     0.1,
+     "1 g"
+    ]
+   ],
+   "marginPct": 7,
+   "session": "intl",
+   "yahoo": "GC=F",
+   "conv": 0.32150723,
+   "premium": 1.06,
+   "tv": "COMEX:GC1!"
+  },
+  {
+   "id": "SILVER",
+   "name": "Silver",
+   "sector": "Bullion",
+   "exch": "MCX",
+   "sym": "SILVER",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Silver",
+     30,
+     "30 kg"
+    ],
+    [
+     "Silver Mini",
+     5,
+     "5 kg"
+    ],
+    [
+     "Silver Micro",
+     1,
+     "1 kg"
+    ]
+   ],
+   "marginPct": 9,
+   "session": "intl",
+   "yahoo": "SI=F",
+   "conv": 32.15072259,
+   "premium": 1.06,
+   "tv": "COMEX:SI1!"
+  },
+  {
+   "id": "CRUDEOIL",
+   "name": "Crude Oil",
+   "sector": "Energy",
+   "exch": "MCX",
+   "sym": "CRUDEOIL",
+   "unit": "₹/bbl",
+   "lots": [
+    [
+     "Crude Oil",
+     100,
+     "100 bbl"
+    ],
+    [
+     "Crude Oil Mini",
+     10,
+     "10 bbl"
+    ]
+   ],
+   "marginPct": 30,
+   "session": "intl",
+   "yahoo": "CL=F",
+   "conv": 1,
+   "premium": 1.0,
+   "tv": "NYMEX:CL1!"
+  },
+  {
+   "id": "NATURALGAS",
+   "name": "Natural Gas",
+   "sector": "Energy",
+   "exch": "MCX",
+   "sym": "NATURALGAS",
+   "unit": "₹/mmBtu",
+   "lots": [
+    [
+     "Natural Gas",
+     1250,
+     "1,250 mmBtu"
+    ],
+    [
+     "Natural Gas Mini",
+     250,
+     "250 mmBtu"
+    ]
+   ],
+   "marginPct": 35,
+   "session": "intl",
+   "yahoo": "NG=F",
+   "conv": 1,
+   "premium": 1.0,
+   "tv": "NYMEX:NG1!"
+  },
+  {
+   "id": "COPPER",
+   "name": "Copper",
+   "sector": "Base Metals",
+   "exch": "MCX",
+   "sym": "COPPER",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Copper",
+     2500,
+     "2.5 t"
+    ]
+   ],
+   "marginPct": 10,
+   "session": "intl",
+   "yahoo": "HG=F",
+   "conv": 2.20462442,
+   "premium": 1.0,
+   "tv": "COMEX:HG1!"
+  },
+  {
+   "id": "ALUMINIUM",
+   "name": "Aluminium",
+   "sector": "Base Metals",
+   "exch": "MCX",
+   "sym": "ALUMINIUM",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Aluminium",
+     5000,
+     "5 t"
+    ],
+    [
+     "Aluminium Mini",
+     1000,
+     "1 t"
+    ]
+   ],
+   "marginPct": 10,
+   "session": "intl",
+   "yahoo": "ALI=F",
+   "conv": 0.001,
+   "premium": 1.0,
+   "tv": "COMEX:ALI1!"
+  },
+  {
+   "id": "ZINC",
+   "name": "Zinc",
+   "sector": "Base Metals",
+   "exch": "MCX",
+   "sym": "ZINC",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Zinc",
+     5000,
+     "5 t"
+    ],
+    [
+     "Zinc Mini",
+     1000,
+     "1 t"
+    ]
+   ],
+   "marginPct": 10,
+   "session": "intl"
+  },
+  {
+   "id": "LEAD",
+   "name": "Lead",
+   "sector": "Base Metals",
+   "exch": "MCX",
+   "sym": "LEAD",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Lead",
+     5000,
+     "5 t"
+    ],
+    [
+     "Lead Mini",
+     1000,
+     "1 t"
+    ]
+   ],
+   "marginPct": 10,
+   "session": "intl"
+  },
+  {
+   "id": "NICKEL",
+   "name": "Nickel",
+   "sector": "Base Metals",
+   "exch": "MCX",
+   "sym": "NICKEL",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Nickel",
+     1500,
+     "1.5 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "intl",
+   "verifyLot": true
+  },
+  {
+   "id": "CARDAMOM",
+   "name": "Cardamom",
+   "sector": "Agri (MCX)",
+   "exch": "MCX",
+   "sym": "CARDAMOM",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Cardamom",
+     100,
+     "100 kg"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "agmark": {
+    "name": "Cardamoms",
+    "div": 100
+   }
+  },
+  {
+   "id": "MENTHAOIL",
+   "name": "Mentha Oil",
+   "sector": "Agri (MCX)",
+   "exch": "MCX",
+   "sym": "MENTHAOIL",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Mentha Oil",
+     360,
+     "360 kg"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri"
+  },
+  {
+   "id": "COTTONCANDY",
+   "name": "Cotton Candy",
+   "sector": "Agri (MCX)",
+   "exch": "MCX",
+   "sym": "COTTON",
+   "unit": "₹/candy",
+   "lots": [
+    [
+     "Cotton Candy",
+     48,
+     "48 candy"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "verifyLot": true
+  },
+  {
+   "id": "KAPAS_MCX",
+   "name": "Kapas (MCX)",
+   "sector": "Agri (MCX)",
+   "exch": "MCX",
+   "sym": "KAPAS",
+   "unit": "₹/20 kg",
+   "lots": [
+    [
+     "Kapas",
+     200,
+     "4 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "verifyLot": true
+  },
+  {
+   "id": "COTTONOIL",
+   "name": "Cotton Oil",
+   "sector": "Agri (MCX)",
+   "exch": "MCX",
+   "sym": "COTTONOIL",
+   "unit": "₹/10 kg",
+   "lots": [
+    [
+     "Cotton Oil",
+     500,
+     "5 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "verifyLot": true
+  },
+  {
+   "id": "GUARSEED",
+   "name": "Guar Seed",
+   "sector": "Agri (NCDEX)",
+   "exch": "NCDEX",
+   "sym": "GUARSEED10",
+   "unit": "₹/quintal",
+   "lots": [
+    [
+     "Guar Seed",
+     100,
+     "10 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "agmark": {
+    "name": "Guar Seed(Cluster Beans Seed)",
+    "div": 1
+   }
+  },
+  {
+   "id": "GUARGUM",
+   "name": "Guar Gum",
+   "sector": "Agri (NCDEX)",
+   "exch": "NCDEX",
+   "sym": "GUARGUM5",
+   "unit": "₹/quintal",
+   "lots": [
+    [
+     "Guar Gum",
+     50,
+     "5 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "agmark": {
+    "name": "Guargum",
+    "div": 1
+   }
+  },
+  {
+   "id": "JEERA",
+   "name": "Jeera (Unjha)",
+   "sector": "Agri (NCDEX)",
+   "exch": "NCDEX",
+   "sym": "JEERAUNJHA",
+   "unit": "₹/quintal",
+   "lots": [
+    [
+     "Jeera",
+     30,
+     "3 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "agmark": {
+    "name": "Cummin Seed(Jeera)",
+    "div": 1
+   }
+  },
+  {
+   "id": "TURMERIC",
+   "name": "Turmeric",
+   "sector": "Agri (NCDEX)",
+   "exch": "NCDEX",
+   "sym": "TMCFGRNZM",
+   "unit": "₹/quintal",
+   "lots": [
+    [
+     "Turmeric",
+     50,
+     "5 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "agmark": {
+    "name": "Turmeric",
+    "div": 1
+   }
+  },
+  {
+   "id": "DHANIYA",
+   "name": "Dhaniya",
+   "sector": "Agri (NCDEX)",
+   "exch": "NCDEX",
+   "sym": "DHANIYA",
+   "unit": "₹/quintal",
+   "lots": [
+    [
+     "Dhaniya",
+     50,
+     "5 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "agmark": {
+    "name": "Corriander seed",
+    "div": 1
+   }
+  },
+  {
+   "id": "CASTOR",
+   "name": "Castor Seed",
+   "sector": "Agri (NCDEX)",
+   "exch": "NCDEX",
+   "sym": "CASTOR",
+   "unit": "₹/quintal",
+   "lots": [
+    [
+     "Castor",
+     50,
+     "5 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "agmark": {
+    "name": "Castor Seed",
+    "div": 1
+   }
+  },
+  {
+   "id": "COCUDAKL",
+   "name": "Cotton Seed Oilcake",
+   "sector": "Agri (NCDEX)",
+   "exch": "NCDEX",
+   "sym": "COCUDAKL",
+   "unit": "₹/quintal",
+   "lots": [
+    [
+     "Cocudakl",
+     100,
+     "10 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri"
+  },
+  {
+   "id": "PEPPER",
+   "name": "Black Pepper",
+   "sector": "Agri (NCDEX)",
+   "exch": "NCDEX",
+   "sym": "PEPPER",
+   "unit": "₹/kg",
+   "lots": [
+    [
+     "Pepper",
+     1000,
+     "1 t"
+    ]
+   ],
+   "marginPct": 12,
+   "session": "agri",
+   "agmark": {
+    "name": "Black pepper",
+    "div": 100
+   },
+   "verifyLot": true
+  }
+ ]
+}

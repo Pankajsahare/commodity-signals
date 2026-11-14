@@ -1,0 +1,22 @@
+# दर रविवारी 10:00 IST — journal (Google Sheet) मधून आठवड्याचा report Telegram वर
+name: weekly-report
+on:
+  schedule:
+    - cron: "30 4 * * 0"
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - env:
+          MCX_RELAY_URL: ${{ secrets.MCX_RELAY_URL }}
+          RELAY_TOKEN: ${{ secrets.RELAY_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/alerts.py --weekly

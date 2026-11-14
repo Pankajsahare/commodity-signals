@@ -1,0 +1,55 @@
+# Exchange EOD data (NCDEX थेट, MCX relay मधून) → history branch. रात्रीच्या run नंतर closing summary channel वर.
+# 18:30 IST (NCDEX/agri) आणि 00:50 IST (MCX बंद झाल्यावर)
+name: eod
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"
+    - cron: "20 19 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: "मागचे किती कामाचे दिवस भरायचे (0 = फक्त आज)"
+        default: "0"
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: eod
+  cancel-in-progress: false
+jobs:
+  eod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open history branch (पहिल्यांदा नसेल तर नवीन)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin history; then git worktree add -B history hist FETCH_HEAD;
+          else git worktree add --detach hist && cd hist && git checkout --orphan history && git rm -rfq . ; fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch EOD
+        env:
+          MCX_RELAY_URL: ${{ secrets.MCX_RELAY_URL }}
+          RELAY_TOKEN: ${{ secrets.RELAY_TOKEN }}
+          DATA_GOV_API_KEY: ${{ secrets.DATA_GOV_API_KEY }}
+        run: python scripts/eod.py --backfill "${{ github.event.inputs.backfill || '0' }}"
+      - name: Save history
+        run: |
+          cd hist && git add -A
+          git diff --cached --quiet || git commit -qm "eod $(date -u +%F)"
+          git push -q origin history
+      - name: Closing summary → Telegram channel (रात्रीचा run)
+        if: github.event.schedule == '20 19 * * 1-5'
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: python scripts/build.py && python scripts/alerts.py --closing
+      - name: Rebuild dashboard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run desk-build.yml --ref main
