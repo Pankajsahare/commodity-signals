@@ -5,10 +5,10 @@
 import json, re, ssl, urllib.request, datetime
 
 SYMBOLS = {
-    "GOLD":     {"name": "Gold",        "yahoo": "GC=F", "mcx": "GOLD",       "unit": "INR/g",      "contractUnits": 1000},
-    "SILVER":   {"name": "Silver",      "yahoo": "SI=F", "mcx": "SILVER",     "unit": "INR/g",      "contractUnits": 30000},
-    "CRUDEOIL": {"name": "Crude Oil",   "yahoo": "CL=F", "mcx": "CRUDEOIL",   "unit": "INR/barrel", "contractUnits": 100},
-    "NATGAS":   {"name": "Natural Gas", "yahoo": "NG=F", "mcx": "NATURALGAS", "unit": "INR/mmBtu",  "contractUnits": 1250},
+    "GOLD":     {"name": "Gold",        "yahoo": "GC=F", "mcx": "GOLD",       "unit": "INR/g",      "contractUnits": 1000,  "perUnit": 31.1035},
+    "SILVER":   {"name": "Silver",      "yahoo": "SI=F", "mcx": "SILVER",     "unit": "INR/g",      "contractUnits": 30000, "perUnit": 31.1035},
+    "CRUDEOIL": {"name": "Crude Oil",   "yahoo": "CL=F", "mcx": "CRUDEOIL",   "unit": "INR/barrel", "contractUnits": 100,   "perUnit": 1},
+    "NATGAS":   {"name": "Natural Gas", "yahoo": "NG=F", "mcx": "NATURALGAS", "unit": "INR/mmBtu",  "contractUnits": 1250,  "perUnit": 1},
 }
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
 CTX = ssl.create_default_context()
@@ -69,9 +69,11 @@ def main():
         price, hist, src = None, [], "yahoo:" + cfg["yahoo"]
         try:
             price, hist = fetch_yahoo(cfg["yahoo"])
-            # USD-quoted contracts → INR मध्ये रूपांतर (MCX INR मध्ये trade होतो)
-            price = price * usdinr
-            hist = [[t, round(o * usdinr, 4), round(h * usdinr, 4), round(l * usdinr, 4), round(c * usdinr, 4)]
+            # Yahoo units → INR प्रति आपल्या unit: USD→INR गुणिले + perUnit ने भागिले
+            # (Gold/Silver USD प्रति troy ounce → INR प्रति gram म्हणून 31.1035 ने भाग)
+            f = usdinr / cfg["perUnit"]
+            price = price * f
+            hist = [[t, round(o * f, 4), round(h * f, 4), round(l * f, 4), round(c * f, 4)]
                     for t, o, h, l, c in hist]
         except Exception as e:
             src = "error:" + str(e)[:80]
