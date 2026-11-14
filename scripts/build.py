@@ -62,11 +62,16 @@ def day_ts(d):
 def ydaily(res):
     # Yahoo daily: exchange च्या स्वतःच्या तारखेनुसार (gmtoffset) — आणि एकाच दिवसाच्या duplicate (live) ओळी काढून शेवटची ठेव
     rows, meta = res
-    off = meta.get("gmtoffset", 0)
     by = {}
     for r in rows:
-        by[datetime.datetime.utcfromtimestamp(r[0] + off).date().isoformat()] = r
+        by[trade_date(r[0], meta)] = r
     return [[day_ts(d)] + by[d][1:] for d in sorted(by)]
+
+
+def trade_date(t, meta):
+    # Futures चा trading day: exchange वेळ + 6 तास (संध्याकाळी 6 ET ला पुढचा दिवस सुरू होतो)
+    off = (meta or {}).get("gmtoffset", 0)
+    return datetime.datetime.utcfromtimestamp(t + off + 6 * 3600).date().isoformat()
 
 
 # ---------- Indicators ----------
@@ -281,10 +286,10 @@ def main():
         # आजची intraday candle daily मध्ये जोडतो (EOD येईपर्यंत Daily trend ताजा राहतो)
         prev_daily = daily[:]
         if intra5:
-            last_d = datetime.datetime.fromtimestamp(daily[-1][0], IST).date()
-            today_c = [x for x in intra5 if datetime.datetime.fromtimestamp(x[0], IST).date() > last_d]
+            last_d = datetime.datetime.fromtimestamp(daily[-1][0], IST).date().isoformat()
+            today_c = [x for x in intra5 if trade_date(x[0], y5[1]) > last_d]
             if today_c:
-                daily = daily + [[day_ts(datetime.datetime.fromtimestamp(today_c[-1][0], IST).date().isoformat()),
+                daily = daily + [[day_ts(trade_date(today_c[-1][0], y5[1])),
                                   today_c[0][1], max(x[2] for x in today_c), min(x[3] for x in today_c), today_c[-1][4],
                                   sum(x[5] for x in today_c)]]
         price = intra5[-1][4] if intra5 else daily[-1][4]
