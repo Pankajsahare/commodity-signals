@@ -59,6 +59,16 @@ def day_ts(d):
     return int(datetime.datetime.fromisoformat(d).replace(tzinfo=IST).timestamp())
 
 
+def ydaily(res):
+    # Yahoo daily: exchange च्या स्वतःच्या तारखेनुसार (gmtoffset) — आणि एकाच दिवसाच्या duplicate (live) ओळी काढून शेवटची ठेव
+    rows, meta = res
+    off = meta.get("gmtoffset", 0)
+    by = {}
+    for r in rows:
+        by[datetime.datetime.utcfromtimestamp(r[0] + off).date().isoformat()] = r
+    return [[day_ts(d)] + by[d][1:] for d in sorted(by)]
+
+
 # ---------- Indicators ----------
 def trend(candles):
     # +1 = वर, -1 = खाली, 0 = गोंधळ; None = पुरेसा data नाही
@@ -215,7 +225,7 @@ def main():
             return None
 
     fx = safe(yahoo_chart, "INR=X", "1d", "2y")
-    fx_map = {datetime.datetime.fromtimestamp(r[0], IST).date().isoformat(): r[4] for r in (fx[0] if fx else [])}
+    fx_map = {datetime.datetime.fromtimestamp(r[0], IST).date().isoformat(): r[4] for r in (ydaily(fx) if fx else [])}
     usdinr = fx[1]["regularMarketPrice"] if fx else (list(fx_map.values())[-1] if fx_map else 94.0)
     dxy = safe(yahoo_chart, "DX-Y.NYB", "1d", "5d")
     strip = {"usdinr": round(usdinr, 3), "dxy": round(dxy[1]["regularMarketPrice"], 2) if dxy else None}
@@ -242,7 +252,7 @@ def main():
             if yd:
                 conv = lambda t, v: v * c["conv"] * fx_map.get(  # noqa: E731
                     datetime.datetime.fromtimestamp(t, IST).date().isoformat(), usdinr)
-                ydc = [[r[0], conv(r[0], r[1]), conv(r[0], r[2]), conv(r[0], r[3]), conv(r[0], r[4]), r[5]] for r in yd[0]]
+                ydc = [[r[0], conv(r[0], r[1]), conv(r[0], r[2]), conv(r[0], r[3]), conv(r[0], r[4]), r[5]] for r in ydaily(yd)]
                 factor = c.get("premium", 1.0)
                 if h and h["rows"]:
                     # Calibration: MCX close / त्याच दिवशीचा Yahoo ₹ close
