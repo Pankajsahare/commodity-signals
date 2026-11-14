@@ -1,28 +1,40 @@
-# दर 5 मिनिटांला भाव fetch करून data.json repo मध्ये लिहितो (सोम-शुक्र, MCX market hours)
+# दर 5 मिनिटांला भाव fetch करून थेट GitHub Pages वर deploy करतो — repo मध्ये data commits नाहीत.
+# MCX वेळ: 09:00–23:30/23:55 IST = 03:30–18:25 UTC (सोम-शुक्र)
+# गरज: Settings → Pages → Source = "GitHub Actions"
 name: fetch-data
 on:
   schedule:
-    - cron: "*/5 4-18 * * 1-5"
+    - cron: "*/5 3-18 * * 1-5"
   workflow_dispatch: {}
+  push:
+    branches: [main]
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 concurrency:
-  group: fetch-data
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 jobs:
-  fetch:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Fetch prices and write data.json
+      - name: Fetch prices and build data.json
         run: python scripts/fetch_data.py
-      - name: Commit data.json
+      - name: Prepare site folder
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data.json
-          git diff --cached --quiet || git commit -m "chore: update data.json"
-          git push
+          mkdir -p _site
+          cp index.html sw.js manifest.json icon.svg data.json _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

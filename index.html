@@ -55,66 +55,65 @@ footer{color:var(--muted);font-size:12px;margin-top:16px;line-height:1.6}
   <label>Risk per trade (%) <input id="risk" type="number" min="0.1" max="10" step="0.1" value="1"></label>
 </div>
 <div class="grid" id="grid"></div>
-<footer>⚠️ Decision-support tool only — not investment advice. Signals are generated from EMA 9/21 crossover, RSI 14 and ATR-based risk levels on 5-minute candles. Data sources are unofficial (MCX internal feed / Yahoo Finance) and may change or stop anytime. Trade at your own risk.</footer>
+<footer>⚠️ Decision-support tool only — not investment advice. Personal use. Signals: EMA 9/21 crossover + RSI 14, filtered by EMA 200 trend, ATR-based SL/target on 5-minute candles. Prices are COMEX/NYMEX futures converted to ₹ (approx. import duty added for bullion) or calibrated to MCX when available — may differ from MCX quotes. Backtest covers only ~5 days and is not a guarantee. Data sources are unofficial and may change or stop anytime. Trade at your own risk.</footer>
 <script>
+// Signal/backtest data.json मध्येच (Python ने) काढलेले असतात — इथे फक्त दाखवणं + lot sizing
 var SYMBOLS=[
- {key:"GOLD",label:"GOLD",unit:"₹/g",lot:"1 kg"},
- {key:"SILVER",label:"SILVER",unit:"₹/g",lot:"30 kg"},
- {key:"CRUDEOIL",label:"CRUDE OIL",unit:"₹/bbl",lot:"100 bbl"},
- {key:"NATGAS",label:"NATURAL GAS",unit:"₹/mmBtu",lot:"1,250 mmBtu"}
+ {key:"GOLD",label:"GOLD",unit:"₹/g"},
+ {key:"SILVER",label:"SILVER",unit:"₹/g"},
+ {key:"CRUDEOIL",label:"CRUDE OIL",unit:"₹/bbl"},
+ {key:"NATGAS",label:"NATURAL GAS",unit:"₹/mmBtu"}
 ];
+var SRC_LABEL={"mcx-calibrated":"MCX-calibrated","comex-est+duty":"COMEX est. (+~6% duty)","comex-est":"COMEX est."};
 function $(id){return document.getElementById(id)}
+function esc(t){return String(t).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function fmt(n,d){if(n==null)return "—";d=d==null?2:d;return n.toLocaleString("en-IN",{minimumFractionDigits:d,maximumFractionDigits:d})}
-function ema(v,n){if(v.length<n)return null;var k=2/(n+1),e=0,i;for(i=0;i<n;i++)e+=v[i];e/=n;for(i=n;i<v.length;i++)e=v[i]*k+e*(1-k);return e}
-function rsi(v,n){n=n||14;if(v.length<n+1)return null;var g=0,l=0,i,d;for(i=1;i<=n;i++){d=v[i]-v[i-1];if(d>0)g+=d;else l-=d}var ag=g/n,al=l/n;for(i=n+1;i<v.length;i++){d=v[i]-v[i-1];ag=(ag*(n-1)+Math.max(d,0))/n;al=(al*(n-1)+Math.max(-d,0))/n}return al===0?100:100-100/(1+ag/al)}
-function atr(h,n){n=n||14;if(h.length<n+1)return null;var s=0,i,hi,lo,cl,pc;for(i=h.length-n;i<h.length;i++){hi=h[i][2];lo=h[i][3];cl=h[i][4];pc=h[i-1][4];s+=Math.max(hi-lo,Math.abs(hi-pc),Math.abs(lo-pc))}return s/n}
-function computeSignal(c){
-  var closes=c.history.map(function(r){return r[4]});
-  var e9=ema(closes,9),e21=ema(closes,21),r=rsi(closes),a=atr(c.history);
-  if(e9==null||e21==null||r==null||a==null)return null;
-  var up=e9>e21,sig="WAIT",conf=1;
-  if(up&&r<70){sig="BUY";conf=r>55?4:3;if(r>60&&e9>e21*1.002)conf=5}
-  else if(!up&&r>30){sig="SELL";conf=r<45?4:3;if(r<40&&e9<e21*0.998)conf=5}
-  var entry=c.price;
-  var sl=sig==="BUY"?entry-1.5*a:(sig==="SELL"?entry+1.5*a:null);
-  var tgt=sig==="BUY"?entry+3*a:(sig==="SELL"?entry-3*a:null);
-  return {sig:sig,conf:conf,entry:entry,sl:sl,tgt:tgt,rsi:r,e9:e9,e21:e21,up:up};
-}
-function riskLots(s,contractUnits,capital,riskPct){
-  if(!s||s.sl==null)return null;
+// जोखीम (capital × risk%) मध्ये बसणारा सगळ्यात मोठा contract निवडतो; कुठलाच बसत नसेल तर null
+function riskLots(s,lots,capital,riskPct){
+  if(!s||s.sl==null||!lots)return {none:true};
   var riskAmt=capital*riskPct/100,dist=Math.abs(s.entry-s.sl);
-  if(dist<=0)return null;
-  return Math.max(1,Math.floor(riskAmt/dist/contractUnits));
+  if(dist<=0)return {none:true};
+  for(var i=0;i<lots.length;i++){
+    var n=Math.floor(riskAmt/(dist*lots[i][1]));
+    if(n>=1)return {n:n,name:lots[i][0],size:lots[i][2],risk:n*dist*lots[i][1]};
+  }
+  var sm=lots[lots.length-1];
+  return {tooHigh:true,name:sm[0],risk:dist*sm[1]};
 }
 function row(label,val){return '<div class="r"><span>'+label+'</span><span>'+val+'</span></div>'}
 function cardHTML(cfg,c){
   if(!c||c.price==null||!c.history||!c.history.length){
     return '<div class="card"><div class="top"><h2>'+cfg.label+'</h2><span class="unit">'+cfg.unit+'</span></div>'+
-      '<div class="price">—</div><div class="rows">'+row("Status","Waiting for first data run")+'</div></div>';
+      '<div class="price">—</div><div class="rows">'+row("Status","Waiting for data")+'</div></div>';
   }
-  var s=computeSignal(c);
-  var closes=c.history.map(function(r){return r[4]});
-  var prev=closes.length>1?closes[closes.length-2]:c.price;
-  var chg=prev?((c.price-prev)/prev*100):0;
+  var s=c.signal;
+  var chg=c.prevClose?((c.price-c.prevClose)/c.prevClose*100):null;
   var cap=parseFloat(localStorage.getItem("cs_capital"))||100000;
   var rp=parseFloat(localStorage.getItem("cs_risk"))||1;
-  var lots=s?riskLots(s,c.contractUnits,cap,rp):null;
-  var conf=s?'<div class="conf">'+Array.from({length:5},function(_,i){return '<i class="'+(i<s.conf?"on":"")+'"></i>'}).join("")+'</div>':"";
-  var trend=s?(s.up?'<span style="color:var(--green)">▲ Uptrend</span>':'<span style="color:var(--red)">▼ Downtrend</span>'):"—";
   var html='<div class="card">'+
     '<div class="top"><h2>'+cfg.label+'</h2><span class="unit">'+cfg.unit+'</span></div>'+
     '<div class="price">'+fmt(c.price)+'</div>'+
-    '<div class="chg" style="color:'+(chg>=0?"var(--green)":"var(--red)")+'">'+(chg>=0?"+":"")+chg.toFixed(2)+'% today</div>';
-  if(s){
-    html+='<div style="margin-top:8px"><span class="badge b-'+s.sig+'">'+s.sig+'</span> <span style="font-size:12px">'+trend+'</span></div>'+conf+
+    (chg==null?'<div class="chg" style="color:var(--muted)">— vs prev session</div>':
+      '<div class="chg" style="color:'+(chg>=0?"var(--green)":"var(--red)")+'">'+(chg>=0?"+":"")+chg.toFixed(2)+'% vs prev session</div>');
+  if(s&&s.e200!=null){
+    var conf='<div class="conf">'+Array.from({length:5},function(_,i){return '<i class="'+(i<s.conf?"on":"")+'"></i>'}).join("")+'</div>';
+    var trend=(s.entry>s.e200?'<span style="color:var(--green)">▲ Above EMA200</span>':'<span style="color:var(--red)">▼ Below EMA200</span>');
+    var L=riskLots(s,c.lots,cap,rp),pos;
+    if(L.none)pos="—";
+    else if(L.tooHigh)pos='<span style="color:var(--red)">Risk too high (1 '+esc(L.name)+' ≈ ₹'+fmt(L.risk,0)+')</span>';
+    else pos=L.n+" × "+esc(L.name)+" ("+esc(L.size)+") · risk ₹"+fmt(L.risk,0);
+    var bt=s.backtest||{};
+    var btTxt=bt.trades?(bt.trades+" trades · win "+bt.winRate+"% · "+(bt.netR>=0?"+":"")+bt.netR+"R"):"No trades";
+    html+='<div style="margin-top:8px"><span class="badge b-'+esc(s.sig)+'">'+esc(s.sig)+'</span> <span style="font-size:12px">'+trend+'</span></div>'+conf+
       '<div class="rows">'+
       row("Entry",fmt(s.entry))+
-      row("Stop-loss",s.sl==null?"—":fmt(s.sl))+
-      row("Target",s.tgt==null?"—":fmt(s.tgt))+
+      row("Stop-loss",fmt(s.sl))+
+      row("Target",fmt(s.tgt))+
       row("RSI (14)",s.rsi.toFixed(1))+
-      row("EMA 9 / 21",fmt(s.e9)+" / "+fmt(s.e21))+
-      row("Position size",lots==null?"—":lots+" lot"+(lots>1?"s":"")+" ("+cfg.lot+")")+
-      row("Source",c.source||"—")+
+      row("EMA 9 / 21 / 200",fmt(s.e9)+" / "+fmt(s.e21)+" / "+fmt(s.e200))+
+      row("Position size",pos)+
+      row("5-day backtest",btTxt)+
+      row("Source",esc(SRC_LABEL[c.source]||c.source||"—"))+
       '</div>';
   }else{
     html+='<div class="rows" style="margin-top:8px">'+row("Status","Not enough history for signals yet")+'</div>';
@@ -150,7 +149,7 @@ function render(data){
     if(c&&c.history&&c.history.length&&cv)drawSpark(cv,c.history);
   });
   var u=data.updatedAt?new Date(data.updatedAt):null;
-  $("updated").textContent=u?("Updated "+u.toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit"})+" IST · USD/INR "+(data.usdinr||"—")):"Waiting for data…";
+  $("updated").textContent=u?("Updated "+u.toLocaleString("en-IN",{timeZone:"Asia/Kolkata",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})+" IST · USD/INR "+(data.usdinr||"—")):"Waiting for data…";
 }
 function load(){
   $("liveDot").style.background="var(--amber)";
@@ -162,7 +161,7 @@ function load(){
     $("banner").style.display="none";
   }).catch(function(e){
     $("banner").style.display="block";
-    $("banner").textContent="⚠️ Could not load live data ("+e.message+"). The first GitHub Actions run may still be pending — try Refresh in a minute.";
+    $("banner").textContent="⚠️ Could not load live data ("+e.message+"). Try Refresh in a minute.";
   }).finally(function(){
     $("liveDot").style.background="var(--green)";
   });
