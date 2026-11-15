@@ -5,7 +5,10 @@ $ErrorActionPreference = 'Stop'
 $dir = Join-Path $env:LOCALAPPDATA 'CommodityDesk'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 $raw = 'https://raw.githubusercontent.com/Pankajsahare/commodity-signals/main/pc/mcx_upload.ps1'
-Invoke-WebRequest $raw -OutFile (Join-Path $dir 'mcx_upload.ps1') -UseBasicParsing
+# Windows PowerShell 5.1 ला UTF-8 file साठी BOM लागतो (नाहीतर मराठी comments मुळे parse error)
+$src = (Invoke-WebRequest ($raw + '?t=' + [DateTime]::UtcNow.Ticks) -UseBasicParsing).Content
+if ($src -is [byte[]]) { $src = [Text.Encoding]::UTF8.GetString($src) }
+[IO.File]::WriteAllText((Join-Path $dir 'mcx_upload.ps1'), $src, (New-Object Text.UTF8Encoding $true))
 
 Write-Host ''
 Write-Host 'Relay token टाक (Apps Script मधला RELAY_TOKEN). टाइप करताना दिसणार नाही — फक्त या PC वर encrypted साठवला जातो.' -ForegroundColor Yellow
@@ -23,5 +26,5 @@ Write-Host 'Scheduled task तयार: "CommodityDesk MCX Upload"' -Foreground
 
 Write-Host 'आता पहिल्यांदा मागच्या ~250 दिवसांचा MCX data पाठवतोय (10-20 मिनिटं लागतील, window बंद करू नको)...' -ForegroundColor Yellow
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ps -Days 250 -Force
-Get-Content (Join-Path $dir 'upload.log') -Tail 5
+if (Test-Path (Join-Path $dir 'upload.log')) { Get-Content (Join-Path $dir 'upload.log') -Tail 5 -Encoding UTF8 }
 Write-Host 'झालं. शेवटची ओळ "OK" असेल तर सगळं बरोबर आहे. Claude ला "uploader done" कळव.' -ForegroundColor Green

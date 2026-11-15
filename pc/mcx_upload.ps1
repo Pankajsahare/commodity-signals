@@ -57,7 +57,7 @@ try {
     Start-Sleep -Milliseconds 800
   }
   (Get-Date).ToString('s') | Set-Content $stamp
-  Log "OK — $done new day(s)"
+  Log "OK - $done new day(s)"
 } catch {
   Log ("ERROR: " + $_.Exception.Message)
   exit 1
