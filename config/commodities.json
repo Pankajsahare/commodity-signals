@@ -1,6 +1,24 @@
 {
- "_help": "नवीन commodity जोडायची असेल तर commodities मध्ये एक entry जोड. yahoo/conv/premium फक्त intraday साठी (optional). lots = [नाव, प्रति 1 point ₹ multiplier, label]. verifyLot=true म्हणजे lot size exchange वर तपासा. holidays = YYYY-MM-DD (MCX circular प्रमाणे भर).",
- "holidays": [],
+ "_help": "नवीन commodity जोडायची असेल तर commodities मध्ये एक entry जोड. yahoo/conv/premium फक्त intraday साठी (optional). lots = [नाव, प्रति 1 point ₹ multiplier, label]. verifyLot=true म्हणजे lot size exchange वर तपासा. holidays = {तारीख: full/morning/evening} (दरवर्षी MCX circular प्रमाणे update कर).",
+ "holidays": {
+  "_help": "MCX circular MCX/TRD/636/2025: full = दोन्ही sessions बंद, morning = फक्त सकाळ (9-5) बंद, evening = फक्त संध्याकाळ बंद",
+  "2026-01-01": "evening",
+  "2026-01-26": "full",
+  "2026-03-03": "morning",
+  "2026-03-26": "morning",
+  "2026-03-31": "morning",
+  "2026-04-03": "full",
+  "2026-04-14": "morning",
+  "2026-05-01": "morning",
+  "2026-05-28": "morning",
+  "2026-06-26": "morning",
+  "2026-09-14": "morning",
+  "2026-10-02": "full",
+  "2026-10-20": "morning",
+  "2026-11-10": "morning",
+  "2026-11-24": "morning",
+  "2026-12-25": "full"
+ },
  "telegramChannel": "-1004486214313",
  "commodities": [
   {
@@ -299,24 +317,6 @@
      "Kapas",
      200,
      "4 t"
-    ]
-   ],
-   "marginPct": 12,
-   "session": "agri",
-   "verifyLot": true
-  },
-  {
-   "id": "COTTONOIL",
-   "name": "Cotton Oil",
-   "sector": "Agri (MCX)",
-   "exch": "MCX",
-   "sym": "COTTONOIL",
-   "unit": "₹/10 kg",
-   "lots": [
-    [
-     "Cotton Oil",
-     500,
-     "5 t"
     ]
    ],
    "marginPct": 12,

@@ -22,15 +22,15 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Load EOD history (history branch)
         run: git fetch --depth=1 origin history && git worktree add hist FETCH_HEAD || mkdir -p hist
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install cryptography==43.0.3
       - name: Restore alert state
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: state
           key: alert-state-${{ github.run_id }}
@@ -54,9 +54,9 @@ jobs:
           mkdir -p _site/desk
           cp index.html icon.svg sw.js _site/
           cp desk/desk.js desk/desk.css desk/index.html _site/desk/
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

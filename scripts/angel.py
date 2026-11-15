@@ -53,10 +53,16 @@ class Angel:
         raise last
 
     def login(self):
+        # दिवसभर एकच token (Angel रात्री 12 ला logout करतो) → दर 5 मिनिटाला नवीन login नको (rate-limit)
+        cached = _load_token()
+        if cached:
+            self.jwt = cached
+            return self
         d = self._post("/rest/auth/angelbroking/user/v1/loginByPassword", {
             "clientcode": os.environ["ANGEL_CLIENT_CODE"], "password": os.environ["ANGEL_PIN"],
             "totp": totp(os.environ["ANGEL_TOTP_SECRET"])}, retries=0)
         self.jwt = d["jwtToken"]
+        _save_token(self.jwt)
         return self
 
     def candles(self, token, interval, start, end):
@@ -100,3 +106,37 @@ def mcx_contracts(names):
     for n in out:
         out[n].sort(key=lambda x: x["exp"])
     return out
+
+
+TOKEN_FILE = "state/angel_token.json"
+
+
+def _cipher():
+    # Token encrypt करूनच cache मध्ये: key = SHA256(TOTP secret + PIN) (secrets फक्त workflow कडे असतात)
+    import hashlib
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    k = hashlib.sha256((os.environ["ANGEL_TOTP_SECRET"] + "|" + os.environ["ANGEL_PIN"]).encode()).digest()
+    return AESGCM(k)
+
+
+def _load_token():
+    try:
+        with open(TOKEN_FILE) as f:
+            js = json.load(f)
+        if js.get("day") != datetime.datetime.now(IST).date().isoformat():
+            return None
+        return _cipher().decrypt(base64.b64decode(js["iv"]), base64.b64decode(js["ct"]), None).decode()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _save_token(tok):
+    try:
+        iv = os.urandom(12)
+        os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
+        with open(TOKEN_FILE, "w") as f:
+            json.dump({"day": datetime.datetime.now(IST).date().isoformat(),
+                       "iv": base64.b64encode(iv).decode(),
+                       "ct": base64.b64encode(_cipher().encrypt(iv, tok.encode(), None)).decode()}, f)
+    except Exception as e:  # noqa: BLE001
+        print("  warn: token cache", str(e)[:80])

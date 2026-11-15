@@ -168,11 +168,16 @@ def build_events(now, expiries):
 
 
 def session_open(now, kind, holidays):
-    if now.weekday() >= 5 or now.date().isoformat() in holidays:
+    # holidays = {तारीख: "full" | "morning" | "evening"}
+    if now.weekday() >= 5:
         return False
+    hol = holidays.get(now.date().isoformat()) if isinstance(holidays, dict) else None
     t = now.hour * 60 + now.minute
+    morning = 9 * 60 <= t < 17 * 60
+    if hol == "full" or (hol == "morning" and morning) or (hol == "evening" and not morning):
+        return False
     if kind == "agri":
-        return 9 * 60 <= t <= 17 * 60
+        return morning
     winter = datetime.datetime.now(NY).dst() == datetime.timedelta(0)
     return 9 * 60 <= t <= (23 * 60 + (55 if winter else 30))
 
@@ -220,7 +225,7 @@ def main():
     args = ap.parse_args()
     cfg = load_config()
     now = now_ist()
-    hol = set(cfg.get("holidays", []))
+    hol = {k: v for k, v in (cfg.get("holidays") or {}).items() if not k.startswith("_")}
 
     def safe(fn, *a):
         try:
@@ -281,14 +286,6 @@ def main():
                 if not daily or len(daily) < 220:
                     daily = [[r[0]] + [v * factor for v in r[1:5]] + [r[5]] for r in ydc]
                     src.append("Yahoo %s daily (₹, MCX-calibrated)" % c["yahoo"] if factor != c.get("premium", 1.0) else "Yahoo %s (₹ est.)" % c["yahoo"])
-                # Public snapshot साठी स्वतंत्र अंदाज (broker data न वापरता): COMEX × USD/INR × duty premium
-                if y5 and y5[0]:
-                    pk = usdinr * c["conv"] * c.get("premium", 1.0)
-                    t_last = trade_date(y5[0][-1][0], y5[1])
-                    prevs = [r for r in ydc if datetime.datetime.fromtimestamp(r[0], IST).date().isoformat() < t_last]
-                    pub = {"price": round(y5[0][-1][4] * pk, 2)}
-                    if prevs:
-                        pub["chgPct"] = round((y5[0][-1][4] * pk / (prevs[-1][4] * c.get("premium", 1.0)) - 1) * 100, 2)
             if y5:
                 imeta = y5[1]
                 k = usdinr * c["conv"] * (factor or c.get("premium", 1.0))
@@ -313,7 +310,6 @@ def main():
         if not daily:
             rows.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"],
                          "price": None, "nodata": True, "note": "Waiting for Angel One data" if c["exch"] == "MCX" else "no data"})
-            snap.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"], "price": None})
             continue
 
         # आजची intraday candle daily मध्ये जोडतो (EOD येईपर्यंत Daily trend ताजा राहतो)
@@ -351,13 +347,9 @@ def main():
                "atrPct": round(atr / price * 100, 2) if atr else None, "pivot": pivots(ref[2], ref[3], ref[4])["P"],
                "fresh": fresh, "src": " + ".join(src), "verifyLot": c.get("verifyLot", False)}
         rows.append(row)
-        # Broker (Angel) चा data public page वर दाखवत नाही — फक्त private desk
-        if "Angel" not in row["src"]:
+        # Public snapshot: फक्त NCDEX (official public bhavcopy). MCX भाव broker data / अंदाज → फक्त private desk
+        if c["exch"] == "NCDEX":
             snap.append({k: row[k] for k in ("id", "name", "sector", "exch", "unit", "price", "chgPct", "fresh")})
-        elif pub:
-            snap.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"],
-                         "price": pub["price"], "chgPct": pub.get("chgPct"), "fresh": {"type": "EST", "ts": y5[0][-1][0]},
-                         "note": "COMEX-based estimate"})
         details[cid] = {"id": cid, "name": c["name"], "unit": c["unit"], "exch": c["exch"], "lots": c["lots"],
                         "marginPct": c["marginPct"], "tv": c.get("tv"), "verifyLot": c.get("verifyLot", False),
                         "signal": {k: v for k, v in sig.items() if k != "backtest"}, "dailyRsi": rsi_d,
@@ -392,7 +384,7 @@ def main():
     write_json(os.path.join(OUT, "summary.json"), summary)
     write_json(os.path.join(SITE, "snapshot.json"),
                {"updatedAt": now.isoformat(), "usdinr": strip["usdinr"], "rows": snap,
-                "expiries": summary["expiries"]})
+                "expiries": [e for e in summary["expiries"] if e["exch"] == "NCDEX"]})
     pw = os.environ.get("DESK_PASSPHRASE")
     if args.plain:
         write_json(os.path.join(SITE, "desk", "data", "summary.json"), summary)

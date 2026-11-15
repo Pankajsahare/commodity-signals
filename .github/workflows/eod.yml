@@ -22,14 +22,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Open history branch (पहिल्यांदा नसेल तर नवीन)
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git fetch --depth=1 origin history; then git worktree add -B history hist FETCH_HEAD;
           else git worktree add --detach hist && cd hist && git checkout --orphan history && git rm -rfq . ; fi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Fetch EOD
