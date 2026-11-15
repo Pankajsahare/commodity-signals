@@ -124,6 +124,19 @@ def check():
     api = "https://api.telegram.org/bot%s/" % tok
     me = http_json(api + "getMe")["result"]
     print("bot: @%s (id %s)" % (me["username"], me["id"]))
+    # bot ला ज्यांनी message केला त्यांचे chat id (TELEGRAM_CHAT_ID भरण्यासाठी)
+    try:
+        ups = http_json(api + "getUpdates")["result"]
+        seen = {}
+        for u in ups:
+            m = u.get("message") or u.get("channel_post") or {}
+            c = m.get("chat") or {}
+            if c:
+                seen[c["id"]] = "%s %s" % (c.get("type"), c.get("username") or c.get("first_name") or c.get("title"))
+        for k, v in seen.items():
+            print("chat:", k, v)
+    except Exception as e:  # noqa: BLE001
+        print("getUpdates:", str(e)[:80])
     ch = os.environ.get("TELEGRAM_CHANNEL_ID")
     if ch:
         try:

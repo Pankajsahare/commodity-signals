@@ -47,6 +47,8 @@ def mcx_day(d):
         return None
     q = urllib.parse.urlencode({"action": "mcx", "date": d.strftime("%d/%m/%Y"), "token": tok})
     js = http_json(url + "?" + q, timeout=60)
+    if (js or {}).get("error"):
+        raise RuntimeError("relay: %s" % js["error"])  # 403 इ. → तारीख "done" mark होत नाही
     rows = (js or {}).get("Data") or []
     if not rows:
         return None
