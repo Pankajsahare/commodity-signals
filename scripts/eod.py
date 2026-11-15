@@ -120,7 +120,7 @@ def angel_eod(cfg):
     if not angel.configured():
         print("  Angel secrets नाहीत — MCX skip")
         return
-    items = [c for c in cfg["commodities"] if c["exch"] == "MCX" and not c.get("yahoo")]
+    items = [c for c in cfg["commodities"] if c["exch"] == "MCX"]  # सगळ्या MCX commodities (bullion/energy पण)
     a = angel.Angel().login()
     cons = angel.mcx_contracts([c["sym"] for c in items])
     now = now_ist()

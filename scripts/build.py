@@ -249,11 +249,11 @@ def main():
     for c in cfg["commodities"]:
         cid = c["id"]
         h = load_hist(cid)
-        daily, intra5, fresh, factor, src = [], [], None, None, []
+        daily, intra5, fresh, factor, src, pub = [], [], None, None, [], None
         imeta = {"gmtoffset": 19800 - 6 * 3600}  # intraday trading-day: default IST तारीख (Angel/MCX)
         if h and h["rows"]:
             daily = [[day_ts(r[0]), r[1], r[2], r[3], r[4], r[6]] for r in h["rows"]]
-            src.append("Angel One MCX EOD" if (c["exch"] == "MCX" and not c.get("yahoo")) else c["exch"] + " bhavcopy")
+            src.append("Angel One MCX EOD" if c["exch"] == "MCX" else c["exch"] + " bhavcopy")
             fresh = {"type": "EOD", "ts": day_ts(h["lastDate"]) + 17 * 3600}
             nx = [x for x in h["contracts"] if x[0] >= now.date().isoformat()]
             if nx:
@@ -278,9 +278,17 @@ def main():
                         f = h["raw"][-1][4] / m[max(cand)]
                         if 0.8 < f < 1.3:
                             factor = f
-                if not daily or len(daily) < 60:
+                if not daily or len(daily) < 220:
                     daily = [[r[0]] + [v * factor for v in r[1:5]] + [r[5]] for r in ydc]
-                    src.append("Yahoo %s (₹ est.)" % c["yahoo"])
+                    src.append("Yahoo %s daily (₹, MCX-calibrated)" % c["yahoo"] if factor != c.get("premium", 1.0) else "Yahoo %s (₹ est.)" % c["yahoo"])
+                # Public snapshot साठी स्वतंत्र अंदाज (broker data न वापरता): COMEX × USD/INR × duty premium
+                if y5 and y5[0]:
+                    pk = usdinr * c["conv"] * c.get("premium", 1.0)
+                    t_last = trade_date(y5[0][-1][0], y5[1])
+                    prevs = [r for r in ydc if datetime.datetime.fromtimestamp(r[0], IST).date().isoformat() < t_last]
+                    pub = {"price": round(y5[0][-1][4] * pk, 2)}
+                    if prevs:
+                        pub["chgPct"] = round((y5[0][-1][4] * pk / (prevs[-1][4] * c.get("premium", 1.0)) - 1) * 100, 2)
             if y5:
                 imeta = y5[1]
                 k = usdinr * c["conv"] * (factor or c.get("premium", 1.0))
@@ -288,17 +296,18 @@ def main():
                 if intra5:
                     fresh = {"type": "LIVE", "ts": intra5[-1][0]}
                     src.append("Yahoo intraday")
-        elif ang and angel_tokens.get(cid):
+        if ang and angel_tokens.get(cid):
             # Active contract: जवळचा expiry; expiry 5 दिवसांत असेल तर पुढचा
             lst = angel_tokens[cid]
             act = lst[0]
             if len(lst) > 1 and (datetime.date.fromisoformat(act["exp"]) - now.date()).days <= 5:
                 act = lst[1]
             try:
-                intra5 = ang.candles(act["token"], "FIVE_MINUTE", now - datetime.timedelta(days=6), now)
-                if intra5:
-                    fresh = {"type": "LIVE", "ts": intra5[-1][0]}
-                    src.append("Angel One MCX %s" % act["exp"])
+                a5 = ang.candles(act["token"], "FIVE_MINUTE", now - datetime.timedelta(days=6), now)
+                if a5:
+                    intra5, imeta = a5, {"gmtoffset": 19800 - 6 * 3600}
+                    fresh = {"type": "LIVE", "ts": a5[-1][0]}
+                    src = [x for x in src if x != "Yahoo intraday"] + ["Angel One MCX 5m %s" % act["exp"]]
             except Exception as e:  # noqa: BLE001
                 print("  warn: Angel 5m", cid, str(e)[:100])
         if not daily:
@@ -345,6 +354,10 @@ def main():
         # Broker (Angel) चा data public page वर दाखवत नाही — फक्त private desk
         if "Angel" not in row["src"]:
             snap.append({k: row[k] for k in ("id", "name", "sector", "exch", "unit", "price", "chgPct", "fresh")})
+        elif pub:
+            snap.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"],
+                         "price": pub["price"], "chgPct": pub.get("chgPct"), "fresh": {"type": "EST", "ts": y5[0][-1][0]},
+                         "note": "COMEX-based estimate"})
         details[cid] = {"id": cid, "name": c["name"], "unit": c["unit"], "exch": c["exch"], "lots": c["lots"],
                         "marginPct": c["marginPct"], "tv": c.get("tv"), "verifyLot": c.get("verifyLot", False),
                         "signal": {k: v for k, v in sig.items() if k != "backtest"}, "dailyRsi": rsi_d,
