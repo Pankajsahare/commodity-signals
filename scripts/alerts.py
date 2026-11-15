@@ -6,7 +6,7 @@
 import argparse, datetime, json, os, sys, urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import IST, http_get, http_json, now_ist, read_json, write_json  # noqa: E402
+from common import IST, http_get, http_json, load_config, now_ist, read_json, write_json  # noqa: E402
 
 STATE = "state/alerts.json"
 SUMMARY = "_out/summary.json"
@@ -19,6 +19,11 @@ def tg(chat, text):
         return
     body = urllib.parse.urlencode({"chat_id": chat, "text": text, "disable_web_page_preview": "true"}).encode()
     http_get("https://api.telegram.org/bot%s/sendMessage" % tok, data=body, retries=1)
+
+
+def channel_id():
+    # Channel ID गुप्त नाही → config मध्ये (secret चा "@saharewealth" हा bot चा username होता)
+    return str(load_config().get("telegramChannel") or os.environ.get("TELEGRAM_CHANNEL_ID") or "")
 
 
 def fmt(v):
@@ -81,7 +86,7 @@ def closing():
         lines += ["", "⏳ Expiries this week: " + ", ".join("%s %s" % (e["name"], e["exp"][5:]) for e in ex)]
     lines += ["", "Data: MCX/NCDEX bhavcopy & global futures. For information only, not a recommendation.",
               "https://www.advisor4u.in/"]
-    tg(os.environ.get("TELEGRAM_CHANNEL_ID"), "\n".join(lines))
+    tg(channel_id(), "\n".join(lines))
 
 
 def weekly():
@@ -141,7 +146,7 @@ def check():
             print("chat:", k, v)
     except Exception as e:  # noqa: BLE001
         print("getUpdates:", str(e)[:80])
-    ch = os.environ.get("TELEGRAM_CHANNEL_ID")
+    ch = channel_id()
     if ch:
         try:
             m = http_json(api + "getChatMember?" + urllib.parse.urlencode({"chat_id": ch, "user_id": me["id"]}))["result"]

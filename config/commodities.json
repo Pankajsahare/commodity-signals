@@ -1,6 +1,7 @@
 {
  "_help": "नवीन commodity जोडायची असेल तर commodities मध्ये एक entry जोड. yahoo/conv/premium फक्त intraday साठी (optional). lots = [नाव, प्रति 1 point ₹ multiplier, label]. verifyLot=true म्हणजे lot size exchange वर तपासा. holidays = YYYY-MM-DD (MCX circular प्रमाणे भर).",
  "holidays": [],
+ "telegramChannel": "-1004486214313",
  "commodities": [
   {
    "id": "GOLD",
