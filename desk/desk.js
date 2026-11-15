@@ -113,6 +113,7 @@
   function filtered(onlyWatch) {
     var q = S.q.toLowerCase();
     return S.summary.rows.filter(function (r) {
+      if (r.nodata) return false;
       if (onlyWatch && !isWatch(r.id)) return false;
       if (S.sector !== "All" && r.sector !== S.sector) return false;
       return !q || (r.name + " " + r.id + " " + r.exch).toLowerCase().indexOf(q) > -1;
@@ -172,7 +173,11 @@
     var rows = filtered(false);
     var ev = (S.summary.events || []).filter(function (e) { return e.t.slice(0, 10) === new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Kolkata" }); });
     return (ev.length ? '<div class="warnbox">⚠️ Today: ' + ev.map(function (e) { return esc(e.title) + " " + new Date(e.t).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }); }).join(" · ") + "</div>" : "") +
-      top3HTML() + toolbar() + heatHTML(rows) + listHTML(rows);
+      top3HTML() + toolbar() + heatHTML(rows) + listHTML(rows) + hiddenNote();
+  }
+  function hiddenNote() {
+    var h = S.summary.rows.filter(function (r) { return r.nodata; });
+    return h.length ? '<p class="mut" style="font-size:12px;margin-top:8px">' + h.length + " MCX-only commodities hidden until their data arrives: " + h.map(function (r) { return esc(r.name); }).join(", ") + "</p>" : "";
   }
   function watchTab() {
     var rows = filtered(true);
@@ -417,6 +422,25 @@
       var p = $("#cdPull"); if (p) p.onclick = function () { pullJournal().then(function () { render(); toast("Synced"); }); };
     }
   }
+
+  // ---------- Site header offset ----------
+  // WordPress theme चा fixed/sticky header desk च्या वरच्या भागावर येतो → तेवढी जागा सोडतो
+  function fixOffset() {
+    var h = 0;
+    [].forEach.call(document.querySelectorAll("body *"), function (el) {
+      if (el === root || root.contains(el) || el.contains(root)) return;
+      var cs = getComputedStyle(el);
+      if ((cs.position === "fixed" || cs.position === "sticky") && cs.display !== "none" && cs.visibility !== "hidden") {
+        var r = el.getBoundingClientRect();
+        if (r.top <= 2 && r.height > 20 && r.height < 260 && r.width > window.innerWidth * 0.6) h = Math.max(h, r.bottom);
+      }
+    });
+    root.style.scrollMarginTop = (h + 10) + "px";
+    root.style.setProperty("--cd-top", h + "px");
+    var top = root.getBoundingClientRect().top + window.scrollY;
+    if (h && top < h + 8) root.style.marginTop = (h + 12 - top + (parseFloat(root.style.marginTop) || 0)) + "px";
+  }
+  setTimeout(fixOffset, 600); window.addEventListener("resize", function () { root.style.marginTop = ""; fixOffset(); });
 
   // ---------- Boot / refresh ----------
   function refresh(manual) {

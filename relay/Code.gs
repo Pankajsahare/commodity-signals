@@ -28,6 +28,20 @@ function sheet_() {
   return sh;
 }
 
+function mcxSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName('MCX') || ss.insertSheet('MCX');
+  if (sh.getLastRow() === 0) { sh.appendRow(['date', 'rows_json', 'uploadedAt']); sh.getRange('A:A').setNumberFormat('@'); }
+  return sh;
+}
+
+function mcxRow_(iso) {
+  var sh = mcxSheet_();
+  if (sh.getLastRow() < 2) return null;
+  var f = sh.getRange(2, 1, sh.getLastRow() - 1, 1).createTextFinder(iso).matchEntireCell(true).findNext();
+  return f ? sh.getRange(f.getRow(), 1, 1, 3).getDisplayValues()[0] : null;
+}
+
 function readJournal_() {
   var sh = sheet_();
   var v = sh.getDataRange().getValues();
@@ -43,17 +57,21 @@ function doGet(e) {
   var p = e.parameter || {};
   if (!authorized_(p.token)) return json_({ error: 'unauthorized' });
   if (p.action === 'mcx') {
-    // date = dd/MM/yyyy
-    var url = 'https://www.mcxindia.com/market-data/bhavcopy/GetDateWiseBhavCopy?InstrumentName=FUTCOM&fromDate=' +
-              encodeURIComponent(p.date);
-    var res = UrlFetchApp.fetch(url, {
-      muteHttpExceptions: true,
-      headers: { 'Content-Type': 'application/json', 'Referer': 'https://www.mcxindia.com/market-data/bhavcopy',
-                 'X-Requested-With': 'XMLHttpRequest',
-                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130 Safari/537.36' }
-    });
-    if (res.getResponseCode() !== 200) return json_({ error: 'mcx ' + res.getResponseCode() });
-    return ContentService.createTextOutput(res.getContentText()).setMimeType(ContentService.MimeType.JSON);
+    // date = dd/MM/yyyy → तुझ्या PC ने upload केलेला MCX bhavcopy (MCX cloud servers ना block करतो)
+    var d = String(p.date || '').split('/');
+    var iso = d.length === 3 ? d[2] + '-' + d[1] + '-' + d[0] : '';
+    var row = mcxRow_(iso);
+    if (!row) return json_({ error: 'not uploaded yet' });
+    var arr = JSON.parse(row[1]);
+    return json_({ Data: arr.map(function (a) {
+      return { InstrumentName: 'FUTCOM', Symbol: a[0], ExpiryDate: a[1], Open: a[2], High: a[3], Low: a[4],
+               Close: a[5], OpenInterest: a[6], Volume: a[7] };
+    }) });
+  }
+  if (p.action === 'mcx_dates') {
+    var sh = mcxSheet_();
+    var v = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getDisplayValues() : [];
+    return json_({ dates: v.map(function (r) { return r[0]; }) });
   }
   if (p.action === 'journal') return json_({ rows: readJournal_() });
   return json_({ ok: true });
@@ -73,6 +91,17 @@ function doPost(e) {
       var i = ids.indexOf(String(t.id));
       if (i > 0) sh.getRange(i + 1, 1, 1, COLS.length).setValues([row]); else sh.appendRow(row);
       return json_({ ok: true });
+    }
+    if (body.action === 'mcx_put') {
+      // PC uploader: {date:'yyyy-mm-dd', rows:[[sym,exp,o,h,l,c,oi,vol],...]}
+      var ms = mcxSheet_();
+      var iso = String(body.date);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return json_({ error: 'bad date' });
+      var payload = JSON.stringify(body.rows || []);
+      var f = ms.getLastRow() > 1 ? ms.getRange(2, 1, ms.getLastRow() - 1, 1).createTextFinder(iso).matchEntireCell(true).findNext() : null;
+      if (f) ms.getRange(f.getRow(), 2, 1, 2).setValues([[payload, new Date().toISOString()]]);
+      else ms.appendRow([iso, payload, new Date().toISOString()]);
+      return json_({ ok: true, rows: (body.rows || []).length });
     }
     if (body.action === 'delete') {
       var j = ids.indexOf(String(body.id));

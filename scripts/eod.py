@@ -54,7 +54,7 @@ def mcx_day(d):
         return None
     out = {}
     for r in rows:
-        if r.get("InstrumentName") != "FUTCOM":
+        if r.get("InstrumentName", "FUTCOM") != "FUTCOM":
             continue
         e = r.get("ExpiryDate", "")
         try:
@@ -160,8 +160,8 @@ def main():
                 continue
             run_day(d, cfg, fetchers)
             time.sleep(0.4)  # exchange servers वर ताण नको
-    # आज + मागचे 3 कामाचे दिवस (चुकलेले भरून काढतो)
-    for back in range(3, -1, -1):
+    # आज + मागचे 10 कामाचे दिवस (PC उशिरा चालू झाला तरी MCX data भरून निघतो)
+    for back in range(14, -1, -1):
         d = today - datetime.timedelta(days=back)
         if d.weekday() < 5:
             run_day(d, cfg, fetchers)
