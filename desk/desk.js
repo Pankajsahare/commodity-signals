@@ -432,7 +432,7 @@
       var cs = getComputedStyle(el);
       if ((cs.position === "fixed" || cs.position === "sticky") && cs.display !== "none" && cs.visibility !== "hidden") {
         var r = el.getBoundingClientRect();
-        if (r.top <= 2 && r.height > 20 && r.height < 260 && r.width > window.innerWidth * 0.6) h = Math.max(h, r.bottom);
+        if (r.top <= 140 && r.bottom > 0 && r.height > 20 && r.height < 260 && r.width > window.innerWidth * 0.6) h = Math.max(h, r.bottom);
       }
     });
     root.style.scrollMarginTop = (h + 10) + "px";
@@ -440,7 +440,7 @@
     var top = root.getBoundingClientRect().top + window.scrollY;
     if (h && top < h + 8) root.style.marginTop = (h + 12 - top + (parseFloat(root.style.marginTop) || 0)) + "px";
   }
-  setTimeout(fixOffset, 600); window.addEventListener("resize", function () { root.style.marginTop = ""; fixOffset(); });
+  setTimeout(fixOffset, 600); setTimeout(function () { root.style.marginTop = ""; fixOffset(); }, 2000); window.addEventListener("resize", function () { root.style.marginTop = ""; fixOffset(); });
 
   // ---------- Boot / refresh ----------
   function refresh(manual) {
