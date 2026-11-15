@@ -279,7 +279,7 @@ def main():
                     src.append("Yahoo intraday")
         if not daily:
             rows.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"],
-                         "price": None, "nodata": True, "note": "MCX relay pending" if c["exch"] == "MCX" else "no data"})
+                         "price": None, "nodata": True, "note": "MCX blocks cloud servers — data unavailable" if c["exch"] == "MCX" else "no data"})
             snap.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"], "price": None})
             continue
 

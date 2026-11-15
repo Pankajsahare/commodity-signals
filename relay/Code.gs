@@ -84,3 +84,12 @@ function doPost(e) {
   }
   return json_({ error: 'unknown action' });
 }
+
+// Editor मधून एकदा Run कर → Google परवानगी (authorize) मागेल; MCX relay चालतो का ते Execution log मध्ये दिसेल
+// (15 Nov 2026 test: MCX ने Google servers पण block केले — 403. Journal sync चालतो.)
+function testRelay() {
+  var res = UrlFetchApp.fetch('https://www.mcxindia.com/market-data/bhavcopy/GetDateWiseBhavCopy?InstrumentName=FUTCOM&fromDate=' + encodeURIComponent('13/11/2026'),
+    { muteHttpExceptions: true, headers: { 'Content-Type': 'application/json', 'Referer': 'https://www.mcxindia.com/market-data/bhavcopy', 'X-Requested-With': 'XMLHttpRequest' } });
+  Logger.log('MCX status ' + res.getResponseCode() + ', bytes ' + res.getContentText().length);
+  Logger.log('Journal rows: ' + readJournal_().length);
+}
