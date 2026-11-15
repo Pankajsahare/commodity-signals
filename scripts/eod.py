@@ -6,7 +6,7 @@
 import argparse, csv, datetime, io, json, os, statistics, sys, time, urllib.parse, zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import http_get, http_json, load_config, now_ist  # noqa: E402
+from common import IST, http_get, http_json, load_config, now_ist  # noqa: E402
 
 HIST = os.environ.get("HIST_DIR", "hist")
 NCDEX_UDIFF_START = datetime.date(2024, 7, 8)  # याआधीचं format वेगळं आहे
@@ -114,6 +114,56 @@ def run_day(d, cfg, fetchers):
         print("  %s %s: %d commodities" % (exch, d, n))
 
 
+def angel_eod(cfg):
+    # Angel One SmartAPI (तुझं broker account) मधून MCX-only commodities चा daily data → hist/<id>.csv
+    import angel
+    if not angel.configured():
+        print("  Angel secrets नाहीत — MCX skip")
+        return
+    items = [c for c in cfg["commodities"] if c["exch"] == "MCX" and not c.get("yahoo")]
+    a = angel.Angel().login()
+    cons = angel.mcx_contracts([c["sym"] for c in items])
+    now = now_ist()
+    today = now.date()
+    tokmap = {}
+    for c in items:
+        lst = cons.get(c["sym"], [])[:3]
+        tokmap[c["id"]] = lst
+        if not lst:
+            print("  Angel: %s (%s) contract सापडला नाही" % (c["id"], c["sym"]))
+            continue
+        p = os.path.join(HIST, c["id"] + ".csv")
+        have = set()
+        if os.path.exists(p):
+            with open(p) as f:
+                have = {(r["date"], r["exp"]) for r in csv.DictReader(f)}
+        try:
+            q = a.quotes([x["token"] for x in lst])
+        except Exception as e:  # noqa: BLE001
+            q = {}
+            print("  Angel quote %s: %s" % (c["id"], str(e)[:80]))
+        added = 0
+        for x in lst:
+            try:
+                cs = a.candles(x["token"], "ONE_DAY", now - datetime.timedelta(days=400), now)
+            except Exception as e:  # noqa: BLE001
+                print("  Angel candles %s %s: %s" % (c["id"], x["exp"], str(e)[:80]))
+                continue
+            done_days = [datetime.datetime.fromtimestamp(r[0], IST).date() for r in cs]
+            last_day = max([d for d in done_days if d < today], default=None)
+            for r, d in zip(cs, done_days):
+                if d >= today or (d.isoformat(), x["exp"]) in have:
+                    continue
+                # OI फक्त market बंद असताना (रात्री 00:50 run) शेवटच्या दिवसासाठी बरोबर असतो
+                oi = float((q.get(str(x["token"])) or {}).get("opnInterest") or 0) if (d == last_day and now.hour < 9) else 0
+                append_rows(c["id"], d, [[x["exp"], r[1], r[2], r[3], r[4], oi, r[5]]])
+                have.add((d.isoformat(), x["exp"]))
+                added += 1
+        print("  Angel %s: +%d rows" % (c["id"], added))
+    with open(os.path.join(HIST, "_angel_tokens.json"), "w") as f:
+        json.dump(tokmap, f)
+
+
 def agmark_basis(cfg):
     # data.gov.in (Agmarknet, official) mandi भाव → futures शी तुलना (basis). API key नसेल तर skip.
     key = os.environ.get("DATA_GOV_API_KEY")
@@ -148,7 +198,8 @@ def main():
     os.makedirs(HIST, exist_ok=True)
     cfg = load_config()
     today = now_ist().date()
-    fetchers = {"NCDEX": ncdex_day, "MCX": mcx_day}
+    # MCX bhavcopy cloud servers ना block → MCX-only commodities Angel One API मधून (angel_eod)
+    fetchers = {"NCDEX": ncdex_day}
     if args.backfill:
         d, days = today, []
         while len(days) < args.backfill:
@@ -165,6 +216,10 @@ def main():
         d = today - datetime.timedelta(days=back)
         if d.weekday() < 5:
             run_day(d, cfg, fetchers)
+    try:
+        angel_eod(cfg)
+    except Exception as e:  # noqa: BLE001
+        print("  Angel EOD error:", str(e)[:150])
     agmark_basis(cfg)
 
 

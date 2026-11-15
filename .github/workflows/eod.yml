@@ -37,6 +37,10 @@ jobs:
           MCX_RELAY_URL: ${{ secrets.MCX_RELAY_URL }}
           RELAY_TOKEN: ${{ secrets.RELAY_TOKEN }}
           DATA_GOV_API_KEY: ${{ secrets.DATA_GOV_API_KEY }}
+          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
+          ANGEL_CLIENT_CODE: ${{ secrets.ANGEL_CLIENT_CODE }}
+          ANGEL_PIN: ${{ secrets.ANGEL_PIN }}
+          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
         run: python scripts/eod.py --backfill "${{ github.event.inputs.backfill || '0' }}"
       - name: Save history
         run: |

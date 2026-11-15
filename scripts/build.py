@@ -236,14 +236,24 @@ def main():
     strip = {"usdinr": round(usdinr, 3), "dxy": round(dxy[1]["regularMarketPrice"], 2) if dxy else None}
     gs = {}
 
+    # Angel One (MCX-only commodities चा intraday) — secrets असतील तरच
+    ang, angel_tokens = None, read_json(os.path.join(HIST, "_angel_tokens.json"), {}) or {}
+    try:
+        import angel
+        if angel.configured() and angel_tokens:
+            ang = angel.Angel().login()
+    except Exception as e:  # noqa: BLE001
+        print("  warn: Angel login", str(e)[:120])
+
     rows, details, snap, expiries = [], {}, [], []
     for c in cfg["commodities"]:
         cid = c["id"]
         h = load_hist(cid)
         daily, intra5, fresh, factor, src = [], [], None, None, []
+        imeta = {"gmtoffset": 19800 - 6 * 3600}  # intraday trading-day: default IST तारीख (Angel/MCX)
         if h and h["rows"]:
             daily = [[day_ts(r[0]), r[1], r[2], r[3], r[4], r[6]] for r in h["rows"]]
-            src.append(c["exch"] + " bhavcopy")
+            src.append("Angel One MCX EOD" if (c["exch"] == "MCX" and not c.get("yahoo")) else c["exch"] + " bhavcopy")
             fresh = {"type": "EOD", "ts": day_ts(h["lastDate"]) + 17 * 3600}
             nx = [x for x in h["contracts"] if x[0] >= now.date().isoformat()]
             if nx:
@@ -272,14 +282,28 @@ def main():
                     daily = [[r[0]] + [v * factor for v in r[1:5]] + [r[5]] for r in ydc]
                     src.append("Yahoo %s (₹ est.)" % c["yahoo"])
             if y5:
+                imeta = y5[1]
                 k = usdinr * c["conv"] * (factor or c.get("premium", 1.0))
                 intra5 = [[r[0], r[1] * k, r[2] * k, r[3] * k, r[4] * k, r[5]] for r in y5[0]]
                 if intra5:
                     fresh = {"type": "LIVE", "ts": intra5[-1][0]}
                     src.append("Yahoo intraday")
+        elif ang and angel_tokens.get(cid):
+            # Active contract: जवळचा expiry; expiry 5 दिवसांत असेल तर पुढचा
+            lst = angel_tokens[cid]
+            act = lst[0]
+            if len(lst) > 1 and (datetime.date.fromisoformat(act["exp"]) - now.date()).days <= 5:
+                act = lst[1]
+            try:
+                intra5 = ang.candles(act["token"], "FIVE_MINUTE", now - datetime.timedelta(days=6), now)
+                if intra5:
+                    fresh = {"type": "LIVE", "ts": intra5[-1][0]}
+                    src.append("Angel One MCX %s" % act["exp"])
+            except Exception as e:  # noqa: BLE001
+                print("  warn: Angel 5m", cid, str(e)[:100])
         if not daily:
             rows.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"],
-                         "price": None, "nodata": True, "note": "MCX blocks cloud servers — data unavailable" if c["exch"] == "MCX" else "no data"})
+                         "price": None, "nodata": True, "note": "Waiting for Angel One data" if c["exch"] == "MCX" else "no data"})
             snap.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"], "price": None})
             continue
 
@@ -287,9 +311,9 @@ def main():
         prev_daily = daily[:]
         if intra5:
             last_d = datetime.datetime.fromtimestamp(daily[-1][0], IST).date().isoformat()
-            today_c = [x for x in intra5 if trade_date(x[0], y5[1]) > last_d]
+            today_c = [x for x in intra5 if trade_date(x[0], imeta) > last_d]
             if today_c:
-                daily = daily + [[day_ts(trade_date(today_c[-1][0], y5[1])),
+                daily = daily + [[day_ts(trade_date(today_c[-1][0], imeta)),
                                   today_c[0][1], max(x[2] for x in today_c), min(x[3] for x in today_c), today_c[-1][4],
                                   sum(x[5] for x in today_c)]]
         price = intra5[-1][4] if intra5 else daily[-1][4]
@@ -318,7 +342,9 @@ def main():
                "atrPct": round(atr / price * 100, 2) if atr else None, "pivot": pivots(ref[2], ref[3], ref[4])["P"],
                "fresh": fresh, "src": " + ".join(src), "verifyLot": c.get("verifyLot", False)}
         rows.append(row)
-        snap.append({k: row[k] for k in ("id", "name", "sector", "exch", "unit", "price", "chgPct", "fresh")})
+        # Broker (Angel) चा data public page वर दाखवत नाही — फक्त private desk
+        if "Angel" not in row["src"]:
+            snap.append({k: row[k] for k in ("id", "name", "sector", "exch", "unit", "price", "chgPct", "fresh")})
         details[cid] = {"id": cid, "name": c["name"], "unit": c["unit"], "exch": c["exch"], "lots": c["lots"],
                         "marginPct": c["marginPct"], "tv": c.get("tv"), "verifyLot": c.get("verifyLot", False),
                         "signal": {k: v for k, v in sig.items() if k != "backtest"}, "dailyRsi": rsi_d,
