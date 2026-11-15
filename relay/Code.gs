@@ -8,7 +8,7 @@
  */
 var SHEET_NAME = 'Journal';
 var COLS = ['id', 'date', 'commodity', 'side', 'contract', 'lots', 'entry', 'sl', 'target', 'exitDate', 'exit',
-            'pnl', 'r', 'score', 'setup', 'mistake', 'notes', 'updatedAt'];
+            'pnl', 'r', 'score', 'setup', 'mistake', 'notes', 'updatedAt', 'mult', 'cid'];
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
