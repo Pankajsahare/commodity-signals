@@ -7,6 +7,8 @@
  * Deploy: Deploy → New deployment → Web app → Execute as: Me, Who has access: Anyone
  */
 var SHEET_NAME = 'Journal';
+// Journal ची Google Sheet (Commodity Journal) — standalone script असल्यामुळे ID ने उघडतो
+var SHEET_ID = '10kX_y2-z0jHduzdetgTvh7GEY4RqZQiTX8_Q-PRYeCk';
 var COLS = ['id', 'date', 'commodity', 'side', 'contract', 'lots', 'entry', 'sl', 'target', 'exitDate', 'exit',
             'pnl', 'r', 'score', 'setup', 'mistake', 'notes', 'updatedAt', 'mult', 'cid'];
 
@@ -20,7 +22,7 @@ function authorized_(tok) {
 }
 
 function sheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SpreadsheetApp.openById(SHEET_ID);
   var sh = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
   if (sh.getLastRow() === 0) sh.appendRow(COLS);
   return sh;
