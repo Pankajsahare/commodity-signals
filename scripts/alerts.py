@@ -90,6 +90,10 @@ def weekly():
         print("relay नाही — weekly skip")
         return
     js = http_json(url + "?" + urllib.parse.urlencode({"action": "journal", "token": tok}))
+    if js.get("error"):
+        print("relay error:", js["error"], "— Apps Script मधला RELAY_TOKEN आणि GitHub secret सारखे आहेत का तपास")
+        return
+    print("journal rows:", len(js.get("rows", [])))
     trades = js.get("rows", [])
     since = (now_ist() - datetime.timedelta(days=7)).date().isoformat()
     wk = [t for t in trades if str(t.get("exitDate", ""))[:10] >= since and t.get("pnl") not in (None, "")]
