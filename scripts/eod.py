@@ -166,8 +166,10 @@ def angel_eod(cfg):
 
 def agmark_basis(cfg):
     # data.gov.in (Agmarknet, official) mandi भाव → futures शी तुलना (basis). API key नसेल तर skip.
+    # 15 Nov 2026 test: data.gov.in GitHub आणि Google दोन्ही servers ना block करतो → default बंद.
+    # भविष्यात चालू करायचं असेल तर workflow मध्ये AGMARK_ENABLE=1 ठेव.
     key = os.environ.get("DATA_GOV_API_KEY")
-    if not key:
+    if not key or not os.environ.get("AGMARK_ENABLE"):
         return
     out = {}
     for c in cfg["commodities"]:
