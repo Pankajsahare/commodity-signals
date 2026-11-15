@@ -177,14 +177,16 @@ def agmark_basis(cfg):
         try:
             q = urllib.parse.urlencode({"api-key": key, "format": "json", "limit": 1000,
                                         "filters[commodity]": ag["name"]})
-            recs = http_json("https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?" + q,
-                             timeout=40).get("records", [])
+            recs = json.loads(http_get("https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?" + q,
+                                       timeout=15, retries=0).decode()).get("records", [])
             prices = [float(r["modal_price"]) / ag["div"] for r in recs if r.get("modal_price")]
             if prices:
                 out[c["id"]] = {"spot": round(statistics.median(prices), 2), "n": len(prices),
                                 "date": max(r.get("arrival_date", "") for r in recs)}
         except Exception as e:  # noqa: BLE001
-            print("  agmark %s: %s" % (c["id"], str(e)[:100]))
+            # data.gov.in GitHub (परदेशी) servers ना अडवतो — एकदा fail झालं की बाकीचे पण होतील, म्हणून थांब
+            print("  agmark %s: %s — बाकी skip" % (c["id"], str(e)[:100]))
+            break
     if out:
         with open(os.path.join(HIST, "basis.json"), "w") as f:
             json.dump(out, f)
