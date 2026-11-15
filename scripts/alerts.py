@@ -115,12 +115,33 @@ def weekly():
     tg(os.environ.get("TELEGRAM_CHAT_ID"), "\n".join(msg))
 
 
+def check():
+    # Bot चं नाव आणि channel मध्ये admin आहे का ते तपासतो (token print करत नाही)
+    tok = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not tok:
+        print("TELEGRAM_BOT_TOKEN secret नाही")
+        return
+    api = "https://api.telegram.org/bot%s/" % tok
+    me = http_json(api + "getMe")["result"]
+    print("bot: @%s (id %s)" % (me["username"], me["id"]))
+    ch = os.environ.get("TELEGRAM_CHANNEL_ID")
+    if ch:
+        try:
+            m = http_json(api + "getChatMember?" + urllib.parse.urlencode({"chat_id": ch, "user_id": me["id"]}))["result"]
+            print("channel %s: status=%s can_post=%s" % (ch, m.get("status"), m.get("can_post_messages")))
+        except Exception as e:  # noqa: BLE001
+            print("channel %s: not reachable (%s) — bot ला admin कर" % (ch, str(e)[:80]))
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--alerts", action="store_true")
     ap.add_argument("--closing", action="store_true")
     ap.add_argument("--weekly", action="store_true")
+    ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
+    if a.check:
+        check()
     if a.alerts:
         alerts()
     if a.closing:
