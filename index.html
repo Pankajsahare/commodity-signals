@@ -34,7 +34,7 @@
   fetch(BASE+"snapshot.json?ts="+Date.now()).then(function(r){return r.json()}).then(function(s){
     var secs={};s.rows.filter(function(r){return r.price!=null}).forEach(function(r){(secs[r.sector]=secs[r.sector]||[]).push(r)});
     var up=new Date(s.updatedAt).toLocaleString("en-IN",{timeZone:"Asia/Kolkata",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
-    var h='<h1>Commodity Market Snapshot</h1><div class="mut">NCDEX agri futures (end-of-day) · Updated '+up+' IST · USD/INR '+fmt(s.usdinr)+'</div>';
+    var h='<h1>Commodity Market Snapshot</h1><div class="mut">NCDEX agri futures (end-of-day) · Updated '+up+' IST</div>';
     Object.keys(secs).forEach(function(k){
       h+='<div class="sec">'+esc(k)+'</div><div class="grid">'+secs[k].map(function(r){
         var c=r.chgPct;return '<div class="c"><b>'+esc(r.name)+'</b><span class="mut">'+esc(r.exch)+' · '+esc(r.unit)+'</span><div class="p">'+fmt(r.price)+'</div>'+
