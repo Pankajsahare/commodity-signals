@@ -147,7 +147,9 @@ def check():
             m = http_json(api + "getChatMember?" + urllib.parse.urlencode({"chat_id": ch, "user_id": me["id"]}))["result"]
             print("channel %s: status=%s can_post=%s" % (ch, m.get("status"), m.get("can_post_messages")))
         except Exception as e:  # noqa: BLE001
-            print("channel %s: not reachable (%s) — bot ला admin कर" % (ch, str(e)[:80]))
+            body = e.read().decode()[:200] if hasattr(e, "read") else ""
+            print("channel: not reachable (%s) %s — bot ला admin कर" % (str(e)[:60], body))
+            print("channel id length:", len(ch), "starts:", ch[:4])
 
 
 if __name__ == "__main__":
