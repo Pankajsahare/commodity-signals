@@ -398,6 +398,10 @@ def main():
     else:
         print("⚠️ DESK_PASSPHRASE secret नाही — private data publish केला नाही (फक्त public snapshot).")
     print("built:", len(rows), "rows; top3:", summary["top3"])
+    # Diagnostics (भाव नाहीत — repo public आहे): data किती मिनिटं जुना
+    ages = {r["id"]: round((now.timestamp() - r["fresh"]["ts"]) / 60) for r in rows
+            if (r.get("fresh") or {}).get("type") == "LIVE"}
+    print("live age (min):", ages, "| mcxOpen:", strip["mcxOpen"])
 
 
 if __name__ == "__main__":

@@ -49,7 +49,7 @@ class Angel:
                 return js.get("data")
             except Exception as e:  # noqa: BLE001
                 last = e
-                time.sleep(1.5 * (i + 1))  # rate limit (AB1021/403) साठी थांबून पुन्हा
+                time.sleep(3 * (i + 1))  # rate limit (AB1021/403) साठी थांबून पुन्हा
         raise last
 
     def login(self):
@@ -74,7 +74,7 @@ class Angel:
         for r in d:
             t = int(datetime.datetime.fromisoformat(r[0]).timestamp())
             out.append([t, float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5] or 0)])
-        time.sleep(0.4)
+        time.sleep(1.0)  # Angel historical API: सेकंदाला 3 पेक्षा कमी requests
         return out
 
     def quotes(self, tokens):
