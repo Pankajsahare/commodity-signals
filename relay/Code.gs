@@ -122,3 +122,26 @@ function testRelay() {
   Logger.log('MCX status ' + res.getResponseCode() + ', bytes ' + res.getContentText().length);
   Logger.log('Journal rows: ' + readJournal_().length);
 }
+
+// ===== GitHub desk-build ला दर 5 मिनिटाला सुरू करणं (GitHub चे cron उशिरा चालतात / वगळतात) =====
+// Setup: Script Properties मध्ये GH_PAT = fine-grained token (फक्त commodity-signals repo, Actions: Read and write)
+//        मग editor मधून एकदा setupDispatchTrigger() Run कर.
+function dispatchDesk() {
+  var p = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'u HH:mm').split(' ');  // u: 1=सोमवार … 7=रविवार
+  var day = Number(p[0]), hm = p[1];
+  if (day > 5 || hm < '08:55') return;  // शनिवार/रविवार आणि सकाळी 8:55 आधी नाही (MCX 23:55 पर्यंत)
+  var pat = PropertiesService.getScriptProperties().getProperty('GH_PAT');
+  if (!pat) return;
+  UrlFetchApp.fetch('https://api.github.com/repos/Pankajsahare/commodity-signals/actions/workflows/desk-build.yml/dispatches', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + pat, Accept: 'application/vnd.github+json' },
+    payload: JSON.stringify({ ref: 'main' })
+  });
+}
+
+function setupDispatchTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'dispatchDesk') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('dispatchDesk').timeBased().everyMinutes(5).create();
+}
