@@ -299,14 +299,23 @@ def main():
             act = lst[0]
             if len(lst) > 1 and (datetime.date.fromisoformat(act["exp"]) - now.date()).days <= 5:
                 act = lst[1]
+            cache_p = os.path.join("state", "a5_%s.json" % cid)
             try:
                 a5 = ang.candles(act["token"], "FIVE_MINUTE", now - datetime.timedelta(days=6), now)
+                if a5:
+                    write_json(cache_p, {"exp": act["exp"], "c": a5[-400:]})
                 if a5:
                     intra5, imeta = a5, {"gmtoffset": 19800 - 6 * 3600}
                     fresh = {"type": "LIVE", "ts": a5[-1][0]}
                     src = [x for x in src if x != "Yahoo intraday"] + ["Angel One MCX 5m %s" % act["exp"]]
             except Exception as e:  # noqa: BLE001
                 print("  warn: Angel 5m", cid, str(e)[:100])
+                # 403/rate-limit: मागच्या यशस्वी run चे candles (खरा वय fresh मध्ये दिसतो)
+                cached = read_json(cache_p, {}) or {}
+                if cached.get("exp") == act["exp"] and cached.get("c"):
+                    intra5, imeta = cached["c"], {"gmtoffset": 19800 - 6 * 3600}
+                    fresh = {"type": "LIVE", "ts": intra5[-1][0]}
+                    src = [x for x in src if x != "Yahoo intraday"] + ["Angel One MCX 5m %s (cached)" % act["exp"]]
         if not daily:
             rows.append({"id": cid, "name": c["name"], "sector": c["sector"], "exch": c["exch"], "unit": c["unit"],
                          "price": None, "nodata": True, "note": "Waiting for Angel One data" if c["exch"] == "MCX" else "no data"})
