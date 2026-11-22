@@ -41,7 +41,7 @@ MON = {m: i + 1 for i, m in enumerate("JAN FEB MAR APR MAY JUN JUL AUG SEP OCT N
 
 
 def mcx_day(d):
-    # MCX GitHub servers ला block करतो (403) — म्हणून Google Apps Script relay (relay/Code.gs)
+    # MCX GitHub servers ला block करतो (403) — म्हणून Google Apps Script relay (relay/mcx_relay_and_journal.gs)
     url, tok = os.environ.get("MCX_RELAY_URL"), os.environ.get("RELAY_TOKEN", "")
     if not url:
         return None
