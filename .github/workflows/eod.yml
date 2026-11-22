@@ -46,7 +46,11 @@ jobs:
         run: |
           cd hist && git add -A
           git diff --cached --quiet || git commit -qm "eod $(date -u +%F)"
-          git push -q origin history
+          for attempt in 1 2 3; do
+            if { git pull -q --rebase origin history || ! git ls-remote --exit-code -q origin history; } && git push -q origin HEAD:history; then break; fi
+            [ "$attempt" = 3 ] && { echo "::error::push failed"; exit 1; }
+            sleep $((attempt * 5))
+          done
       - name: Closing summary → Telegram channel (रात्रीचा run)
         if: github.event.schedule == '20 19 * * 1-5'
         continue-on-error: true
